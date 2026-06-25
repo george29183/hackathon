@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  pageExtensions: ["js", "jsx"],
+  turbopack: {
+    root: import.meta.dirname,
+  },
 };
 
 export default nextConfig;
