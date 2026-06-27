@@ -1,11 +1,11 @@
 import { NextResponse, NextRequest } from "next/server";
 
-export function middleware(request) {
+export function proxy(request) {
   const path = request.nextUrl.pathname;
 
   // 1. Define Public Paths
-  const isStudentPublicPath = path === '/login' || path === '/signup' || path === '/verify-email';
-  const isLecturerPublicPath = path === '/lecturer/login' || path === '/lecturer/signup' || path === '/lecturer/verify-email';
+  const isStudentPublicPath = path === '/login' || path === '/signup' || path === '/verify-email'|| path === '/forgot-password' || path === '/reset-password';
+  const isLecturerPublicPath = path === '/lecturer/login' || path === '/lecturer/signup' || path === '/lecturer/verify-email' || path === '/forgot-password' || path === '/reset-password';
 
   // 2. Define Protected Paths
   // Anything starting with '/student' is protected (except we don't need to worry because public ones don't start with /student)
@@ -54,6 +54,8 @@ export const config = {
     '/login',
     '/signup',
     '/verify-email',
+    '/forgot-password', 
+    '/reset-password',  
     '/lecturer/login',
     '/lecturer/signup',
     '/lecturer/verify-email'
