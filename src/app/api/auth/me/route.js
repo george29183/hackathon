@@ -5,12 +5,10 @@ import jwt from "jsonwebtoken";
 
 export async function GET(request) {
   try {
-    // 1. Try student token first
     let token = request.cookies.get("student_token")?.value;
     let role = "student";
     let tableName = "Users";
 
-    // 2. If no student token, check lecturer token
     if (!token) {
       token = request.cookies.get("lecturer_token")?.value;
       role = "lecturer";
@@ -19,17 +17,20 @@ export async function GET(request) {
 
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // 3. Decode token to get email
-    const decoded = jwt.verify(token, process.env.TOKEN_SECRET);
-    const email = decoded.email;
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.TOKEN_SECRET);
+    } catch (err) {
+      // NEW: Catch expired or invalid tokens specifically
+      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+    }
 
-    // 4. Fetch user from DynamoDB
+    const email = decoded.email;
     const res = await docClient.send(new GetCommand({ TableName: tableName, Key: { email } }));
     const user = res.Item;
 
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // 5. Remove password before sending to frontend!
     const { password, ...safeUser } = user;
     safeUser.role = role;
 

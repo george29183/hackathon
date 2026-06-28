@@ -4,25 +4,29 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Card, Stat } from "@/components/ui";
 import Navbar from "@/components/navbar";
-
-
 export default function LecturerProfile() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [quizzesCreated, setQuizzesCreated] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserData = async () => {
       try {
-        const res = await axios.get("/api/auth/me", { withCredentials: true });
-        if (res.data.success) setUser(res.data.user);
+        const [profileRes, quizzesRes] = await Promise.all([
+          axios.get("/api/auth/me", { withCredentials: true }),
+          axios.get("/api/quiz", { withCredentials: true }) // Reuse the dashboard fetch
+        ]);
+
+        if (profileRes.data.success) setUser(profileRes.data.user);
+        if (quizzesRes.data.success) setQuizzesCreated(quizzesRes.data.quizzes.length);
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchUser();
+    fetchUserData();
   }, []);
 
   const handleLogout = async () => {
@@ -30,8 +34,8 @@ export default function LecturerProfile() {
     router.push("/lecturer/login");
   };
 
-  if (loading) return <div className="min-h-screen grid place-items-center">Loading...</div>;
-  if (!user) return <div className="min-h-screen grid place-items-center">User not found.</div>;
+  if (loading) return <div className="min-h-screen grid place-items-center gradient-mesh">Loading...</div>;
+  if (!user) return <div className="min-h-screen grid place-items-center gradient-mesh">User not found.</div>;
 
   return (
     <main className="min-h-screen gradient-mesh">
@@ -41,14 +45,14 @@ export default function LecturerProfile() {
         <h1 className="text-2xl font-bold mb-6">My Profile</h1>
         
         <Card className="p-8">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-4 mb-8">
             <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
               {user.username?.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 className="text-xl font-bold">{user.username.toUpperCase()}</h2>
+              <h2 className="text-xl font-bold">{user.username}</h2>
               <p className="text-sm text-muted-foreground">{user.email}</p>
-              <span className="mt-1 inline-block text-xs bg-success/15 text-success px-2 py-1 rounded-full font-medium">
+              <span className={`mt-1 inline-block text-xs px-2 py-1 rounded-full font-medium ${user.isVerified ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
                 {user.isVerified ? "✓ Verified" : "Not Verified"}
               </span>
             </div>
@@ -56,7 +60,7 @@ export default function LecturerProfile() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Stat label="Role" value="Lecturer" />
-            <Stat label="Member Since" value={new Date(user.dateCreated).toLocaleDateString()} />
+            <Stat label="Quizzes Created" value={quizzesCreated} />
           </div>
         </Card>
       </section>

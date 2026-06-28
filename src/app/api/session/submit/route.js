@@ -17,6 +17,11 @@ export async function POST(request) {
     const quizRes = await docClient.send(new GetCommand({ TableName: "Quizzes", Key: { quizId } }));
     const quiz = quizRes.Item;
 
+      // NEW: Prevent crash if quiz was deleted by lecturer
+    if (!quiz) {
+      return NextResponse.json({ error: "Quiz not found." }, { status: 404 });
+    }
+    
     // 3. Grade the quiz
     let score = 0;
     const gradedAnswers = quiz.questions.map((q, index) => {

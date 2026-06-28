@@ -31,6 +31,11 @@ export default function LecturerLogin() {
 
   return (
     <main className="grid min-h-screen place-items-center p-4 gradient-mesh">
+      <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
+        <Link href="/">
+          <Button variant="ghost">← Back to Home</Button>
+        </Link>
+      </div>
       <Card className="w-full max-w-md p-8">
         <div className="text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">T</div>

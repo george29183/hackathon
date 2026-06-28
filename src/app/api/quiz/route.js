@@ -25,6 +25,7 @@ export async function POST(request) {
       difficulty: reqBody.difficulty || "medium",
       category: reqBody.category || "General",
       questions: reqBody.questions,
+       isActive: true,
       timeLimit: parseInt(reqBody.timeLimit || "5", 10),
       // Generate secret code for students to join
       quizCode: `${reqBody.title.substring(0, 4).toUpperCase().replace(/\s/g, '')}-${randomUUID().split("-")[0].toUpperCase()}`,

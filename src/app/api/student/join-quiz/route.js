@@ -10,9 +10,10 @@ export async function POST(request) {
     // 1. Scan for the quiz with this specific secret code
     const command = new ScanCommand({
       TableName: "Quizzes",
-      FilterExpression: "quizCode = :code",
+      FilterExpression: "quizCode = :code AND isActive = :trueVal",
       ExpressionAttributeValues: {
         ":code": formattedCode,
+        ":trueVal": true
       },
     });
 

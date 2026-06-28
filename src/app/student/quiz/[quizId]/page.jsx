@@ -22,10 +22,21 @@ export default function TakeQuiz() {
   const [questionData, setQuestionData] = useState([]);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [presence, setPresence] = useState("active");
-  
+  const currentQRef = useRef(currentQ);
+  const questionDataRef = useRef(questionData);
+
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+
+  // NEW: Reset the ref if the student navigates to a different quiz
+  useEffect(() => {
+    hasStarted.current = false;
+  }, [quizId]);
+
+    // Keep refs updated with the latest state
+  useEffect(() => { currentQRef.current = currentQ; }, [currentQ]);
+  useEffect(() => { questionDataRef.current = questionData; }, [questionData]);
 
   useEffect(() => {
     const fetchQuizAndStart = async () => {
@@ -73,23 +84,28 @@ export default function TakeQuiz() {
     }
   }, [timeLeft]);
 
-    // Track presence (Tab switching, Window Blur, Internet, Copy/Paste) - LIVE UPDATES!
-  useEffect(() => {
+    useEffect(() => {
+    // NEW: Stop ticking if time is up, if submitting, or if result is showing
+    if (timeLeft <= 0 || submitting || result) return;
+    const timerId = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
+    return () => clearInterval(timerId);
+  }, [timeLeft, submitting, result]); // Added dependencies
 
-     const updateBackend = async (newPresence) => {
+      // Track presence - Uses refs so listeners only bind ONCE!
+  useEffect(() => {
+    const updateBackend = async (newPresence) => {
       if (sessionId) {
         try {
           await axios.post("/api/session/update", {
             sessionId,
-            currentQuestion: currentQ,
-            questionData: questionData.map((q, i) => i === currentQ && newPresence !== "active" ? { ...q, answeredPresence: newPresence } : q),
+            currentQuestion: currentQRef.current,
+            questionData: questionDataRef.current.map((q, i) => i === currentQRef.current && newPresence !== "active" ? { ...q, answeredPresence: newPresence } : q),
             presence: newPresence,
           });
         } catch (err) { console.error(err); }
       }
     };
 
-    
     const handleVisibilityChange = async () => {
       const newPresence = document.hidden ? "tab_switched" : "active";
       setPresence(newPresence);
@@ -97,52 +113,18 @@ export default function TakeQuiz() {
       if (document.hidden) {
         setQuestionData(prev => {
           const updated = [...prev];
-          if (updated[currentQ]) {
-            updated[currentQ].answeredPresence = "tab_switched";
-          }
+          if (updated[currentQRef.current]) updated[currentQRef.current].answeredPresence = "tab_switched";
           return updated;
         });
       }
-
-      // NEW: Instantly tell the backend the moment they switch tabs!
-      if (sessionId) {
-        try {
-          await axios.post("/api/session/update", {
-            sessionId,
-            currentQuestion: currentQ,
-            questionData: questionData.map((q, i) => i === currentQ && document.hidden ? { ...q, answeredPresence: "tab_switched" } : q),
-            presence: newPresence,
-          });
-        } catch (err) { console.error("Failed to update live presence", err); }
-      }
+      await updateBackend(newPresence);
     };
 
-    const handleOffline = async () => {
-      setPresence("disconnected");
-      if (sessionId) {
-        try {
-          await axios.post("/api/session/update", { sessionId, currentQuestion: currentQ, questionData, presence: "disconnected" });
-        } catch (err) { console.error(err); }
-      }
-    };
-
-    const handleOnline = async () => {
-      setPresence("active");
-      if (sessionId) {
-        try {
-          await axios.post("/api/session/update", { sessionId, currentQuestion: currentQ, questionData, presence: "active" });
-        } catch (err) { console.error(err); }
-      }
-    };
-
-    // --- NEW ADDITIONS START HERE ---
-
-    // 1. Window Blur (Catches clicking onto a desktop app like Discord)
     const handleBlur = async () => {
       setPresence("window_blur");
       setQuestionData(prev => {
         const updated = [...prev];
-        if (updated[currentQ]) updated[currentQ].answeredPresence = "window_blur";
+        if (updated[currentQRef.current]) updated[currentQRef.current].answeredPresence = "window_blur";
         return updated;
       });
       await updateBackend("window_blur");
@@ -153,44 +135,44 @@ export default function TakeQuiz() {
       await updateBackend("active");
     };
 
-    // 2. Copy/Paste Blocker
-    const handleCopyPaste = (e) => {
-      e.preventDefault(); // Block the action
+     const handleCopyPaste = (e) => {
+      e.preventDefault();
       toast.error("🚨 Copying and pasting is disabled during the quiz!");
       
-      // Flag them for trying to cheat!
       setQuestionData(prev => {
         const updated = [...prev];
-        if (updated[currentQ]) updated[currentQ].answeredPresence = "copy_paste_attempt";
+        if (updated[currentQRef.current]) updated[currentQRef.current].answeredPresence = "copy_paste_attempt";
         return updated;
       });
       updateBackend("copy_paste_attempt");
     };
 
-    // --- NEW ADDITIONS END HERE ---
-
+    // Bind once
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("offline", handleOffline);
-    window.addEventListener("online", handleOnline);
-    
-    // Add the new event listeners
     window.addEventListener("blur", handleBlur);
     window.addEventListener("focus", handleFocus);
     document.addEventListener("copy", handleCopyPaste);
     document.addEventListener("paste", handleCopyPaste);
+        document.addEventListener("cut", handleCopyPaste); 
+    document.addEventListener("contextmenu", handleCopyPaste); 
+    document.addEventListener("dragstart", handleCopyPaste);
+    document.addEventListener("drop", handleCopyPaste);     
+    window.addEventListener("offline", () => updateBackend("disconnected"));
+    window.addEventListener("online", () => updateBackend("active"));
 
+    // Cleanup once on unmount
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("online", handleOnline);
-      
-      // Clean up the new event listeners
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("copy", handleCopyPaste);
       document.removeEventListener("paste", handleCopyPaste);
+       document.removeEventListener("cut", handleCopyPaste);
+      document.removeEventListener("contextmenu", handleCopyPaste);
+      document.removeEventListener("dragstart", handleCopyPaste);
+      document.removeEventListener("drop", handleCopyPaste);
     };
-  }, [sessionId, currentQ, questionData]); // Need these dependencies so it sends the latest data!
+  }, [sessionId]); // Only re-bind if sessionId changes!
    
     // Track Fullscreen Exit (Proctoring)
   useEffect(() => {
@@ -233,11 +215,17 @@ export default function TakeQuiz() {
   // NEW: Unified navigation function for Next, Previous, or Submit
   const handleNavigation = async (action) => {
     const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
-    const newQData = [...questionData];
-    
-    // Record the time spent on this visit
-    newQData[currentQ].timeSpent.push(timeSpent);
-    newQData[currentQ].visits += 1;
+
+  const newQData = questionData.map((q, i) => {
+      if (i === currentQ) {
+        return {
+          ...q,
+          timeSpent: [...q.timeSpent, timeSpent],
+          visits: q.visits + 1
+        };
+      }
+      return q;
+    });
     
     setQuestionData(newQData);
 
@@ -257,10 +245,18 @@ export default function TakeQuiz() {
 
     if (action === "next") setCurrentQ((prev) => prev + 1);
     else if (action === "prev") setCurrentQ((prev) => prev - 1);
-    else if (action === "submit") handleSubmit(false, newQData);
+     else if (action === "submit") {
+      // NEW: Check for unanswered questions
+      const unanswered = newQData.filter(q => q.selectedAnswer === null).length;
+      if (unanswered > 0) {
+        const confirmSubmit = window.confirm(`You have ${unanswered} unanswered question(s). Are you sure you want to submit?`);
+        if (!confirmSubmit) return; // Stop submission
+      }
+      handleSubmit(false, newQData);
+    }
   };
 
-  const handleSubmit = async (isAuto, finalData = questionData) => {
+    const handleSubmit = async (isAuto, finalData = questionData) => {
     if (submitting) return;
     setSubmitting(true);
     try {
@@ -268,8 +264,14 @@ export default function TakeQuiz() {
         quizId,
         questionData: finalData,
       }, { withCredentials: true });
+      
       if (res.data.success) {
-        toast.success("Quiz submitted!");
+        // NEW: Use isAuto to give the user the correct feedback!
+        if (isAuto) {
+          toast.error("Time is up! Quiz submitted automatically.");
+        } else {
+          toast.success("Quiz submitted successfully!");
+        }
         setResult(res.data.result);
       }
     } catch (err) {
@@ -281,12 +283,15 @@ export default function TakeQuiz() {
 
 
     const selectAnswer = (opt) => {
-    const newQData = [...questionData];
-    // If they already had an answer and it's different, mark as changed
-    if (newQData[currentQ].selectedAnswer !== null && newQData[currentQ].selectedAnswer !== opt) {
-      newQData[currentQ].isChanged = true;
-    }
-    newQData[currentQ].selectedAnswer = opt;
+
+     const newQData = questionData.map((q, i) => {
+      if (i !== currentQ) return q;
+      
+      const isChanged = q.selectedAnswer !== null && q.selectedAnswer !== opt;
+      return { ...q, selectedAnswer: opt, isChanged: isChanged ? true : q.isChanged };
+    });
+
+
     // NEW: Record if they were tab-switched when they selected this answer!
     setQuestionData(newQData);
   };
@@ -355,7 +360,7 @@ export default function TakeQuiz() {
       <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
           <strong className="text-lg text-primary">Pace</strong>
-          <div className={`px-4 py-1.5 rounded-full font-mono font-bold text-sm ${timeLeft < 30 ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-muted text-muted-foreground'}`}>
+          <div className={`px-4 py-1.5 rounded-full font-mono font-bold text-sm ${timeLeft < 30 ? 'bg-destructive/10 text-destructive motion-safe:animate-pulse' : 'bg-muted text-muted-foreground'}`}>
             {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
           </div>
           <div className="w-full max-w-xs">

@@ -24,9 +24,15 @@ export async function POST(request) {
     // 2. Check password
     const validPassword = await bcryptjs.compare(password, lecturer.password);
     if (!validPassword) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 400 });
     }
 
+     // NEW: Check if verified
+    if (!lecturer.isVerified) {
+      return NextResponse.json({ error: "Please verify your email first" }, { status: 403 });
+    }  
+
+    
     // 3. Create Token Data
     const tokenData = {
       id: lecturer.email,
@@ -40,7 +46,11 @@ export async function POST(request) {
 
     // 5. Set cookie as 'lecturer_token' (This is what our middleware and dashboard look for!)
     const res = NextResponse.json({ message: "Login successful", success: true });
-    res.cookies.set("lecturer_token", token, { httpOnly: true, secure: true, });
+    res.cookies.set("lecturer_token", token, 
+      { httpOnly: true, 
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict"
+      });
 
     return res;
   } catch (error) {

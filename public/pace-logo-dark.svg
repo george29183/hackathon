@@ -1,0 +1,16 @@
+<svg viewBox="0 0 360 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pace — dark monochrome version">
+  <g transform="translate(10, 10)">
+    <g transform="rotate(-6 40 40)">
+      <path d="M 4 40 Q 40 8 76 40 Q 40 72 4 40 Z" fill="#0F172A"/>
+      <circle cx="40" cy="40" r="15" fill="#FFFFFF"/>
+      <path d="M 35 31 L 49 40 L 35 49 L 39 40 Z" fill="#0F172A"/>
+    </g>
+    <g transform="translate(68, 12)">
+      <path d="M 0 -8 L 2.4 -2.4 L 8 0 L 2.4 2.4 L 0 8 L -2.4 2.4 L -8 0 L -2.4 -2.4 Z" fill="#0F172A"/>
+    </g>
+  </g>
+  <text x="104" y="70"
+        font-family="'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif"
+        font-size="52" font-weight="700" letter-spacing="-2.5"
+        fill="#0F172A">Pace</text>
+</svg>

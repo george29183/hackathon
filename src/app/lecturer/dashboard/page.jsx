@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Card, Header } from "@/components/ui";
 import Navbar from "@/components/navbar";
-
+import toast from "react-hot-toast";
 
 export default function LecturerDashboard() {
   const router = useRouter();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingToggle, setLoadingToggle] = useState(null);
+
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -33,6 +35,22 @@ export default function LecturerDashboard() {
     await axios.get("/api/auth/logout");
     router.push("/lecturer/login");
   };
+
+  const handleToggleActive = async (quizId, currentStatus) => {
+    setLoadingToggle(quizId);
+    try {
+      await axios.post("/api/quiz/toggle-status", { quizId, isActive: !currentStatus }, { withCredentials: true });
+      
+      // Update local state
+      setQuizzes(prev => prev.map(q => q.quizId === quizId ? { ...q, isActive: !currentStatus } : q));
+      toast.success(`Quiz ${!currentStatus ? 'activated' : 'deactivated'}`);
+    } catch (err) {
+      toast.error("Failed to update status.");
+    } finally {
+      setLoadingToggle(null); // This ensures the button unloads no matter what
+    }
+  };
+
 
   return (
     <main className="min-h-screen gradient-mesh">
@@ -71,14 +89,15 @@ export default function LecturerDashboard() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {quizzes.map((quiz) => (
-            <Card key={quiz.quizId} className="p-5 flex flex-col border-l-4 border-l-success">
+                        <Card key={quiz.quizId} className={`p-5 flex flex-col border-l-4 ${quiz.isActive ? 'border-l-success' : 'border-l-muted-foreground'}`}>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <h3 className="text-lg font-semibold">{quiz.title}</h3>
                   <p className="mt-1 text-sm text-muted-foreground capitalize">{quiz.category} - {quiz.difficulty}</p>
                 </div>
-                <span className="rounded-full px-2.5 py-1 text-xs font-bold bg-success text-white">
-                  Active
+                {/* Dynamic Status Badge */}
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${quiz.isActive ? "bg-success text-white" : "bg-muted text-muted-foreground"}`}>
+                  {quiz.isActive ? "Active" : "Inactive"}
                 </span>
               </div>
               
@@ -95,6 +114,14 @@ export default function LecturerDashboard() {
                 <Link href={`/lecturer/monitor/${quiz.quizId}`}>
                   <Button variant="outline">View Analytics</Button>
                 </Link>
+                {/* NEW: Toggle Button */}
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleToggleActive(quiz.quizId, quiz.isActive)}
+                  disabled={loadingToggle === quiz.quizId}
+                >
+                  {loadingToggle === quiz.quizId ? "..." : (quiz.isActive ? "Deactivate" : "Activate")}
+                </Button>
               </div>
             </Card>
           ))}

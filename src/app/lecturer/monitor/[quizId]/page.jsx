@@ -15,7 +15,7 @@ export default function MonitorQuiz() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [chartData, setChartData] = useState([]);
 
-  useEffect(() => {
+    useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await axios.get(`/api/session/${quizId}`);
@@ -23,6 +23,7 @@ export default function MonitorQuiz() {
           setQuiz(res.data.quiz);
           setSessions(res.data.sessions);
           
+          // Process chart data...
           if (res.data.quiz.questions) {
             const times = Array(res.data.quiz.questions.length).fill(0);
             let validSubmissions = 0;
@@ -42,10 +43,19 @@ export default function MonitorQuiz() {
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
     };
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
+
+    fetchData(); // Fetch immediately
+
+    // NEW: Only fetch if the lecturer is actively looking at the tab
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchData();
+      }
+    }, 5000);
+
     return () => clearInterval(interval);
   }, [quizId]);
+
 
   const fetchAISummary = async () => {
     setLoadingSummary(true);
@@ -56,33 +66,42 @@ export default function MonitorQuiz() {
     finally { setLoadingSummary(false); }
   };
 
-    // UPGRADED CSV Export Function
+  // UPGRADED & SAFE CSV Export Function
   const exportCSV = () => {
     if (!quiz || sessions.length === 0) return;
     
-    let csv = "Student Email,Score,";
+    // Helper to escape fields containing commas or quotes
+    const escapeCsv = (str) => {
+      const s = String(str || "");
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`; // Wrap in quotes and double any internal quotes
+      }
+      return s;
+    };
+
+    let csv = "Student Email,Score,Integrity Risk,";
     quiz.questions.forEach((_, i) => {
       csv += `Q${i+1} Answer,Q${i+1} Time(s),Q${i+1} Changed?,Q${i+1} Presence,`;
     });
     csv += "\n";
 
     sessions.forEach(s => {
-      csv += `${s.studentEmail},${s.score}/${s.totalQuestions},`;
+      csv += `${escapeCsv(s.studentEmail)},${s.score}/${s.totalQuestions},${s.integrityRisk || 0},`;
       if (s.gradedAnswers) {
         s.gradedAnswers.forEach(ans => {
-          // Wrap answer in quotes to escape commas in the text
-          csv += `"${ans.selectedAnswer}",${ans.timeSpent},${ans.isChanged ? 'Yes' : 'No'},${ans.answeredPresence || 'active'},`;
+          csv += `${escapeCsv(ans.selectedAnswer)},${ans.timeSpent},${ans.isChanged ? 'Yes' : 'No'},${ans.answeredPresence || 'active'},`;
         });
       }
       csv += "\n";
     });
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${quiz.title.replace(/\s/g, '_')}_analytics.csv`;
     a.click();
+    window.URL.revokeObjectURL(url); // Clean up memory
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center gradient-mesh">Loading...</div>;
@@ -139,7 +158,7 @@ export default function MonitorQuiz() {
                 {loadingSummary ? "Analyzing..." : "Generate Summary"}
               </Button>
             </div>
-            <div className="text-sm text-muted-foreground prose prose-sm max-w-none flex-grow" dangerouslySetInnerHTML={{ __html: aiSummary || "<p>Click 'Generate Summary' to let AI analyze student performance and provide insights.</p>" }} />
+            <div className="text-sm text-muted-foreground prose prose-sm max-w-none grow" dangerouslySetInnerHTML={{ __html: aiSummary || "<p>Click 'Generate Summary' to let AI analyze student performance and provide insights.</p>" }} />
           </Card>
         </div>
 
@@ -152,25 +171,39 @@ export default function MonitorQuiz() {
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground border-r">Student</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground border-r">Score</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground border-r whitespace-nowrap">Presence</th>
+                  <th className="px-4 py-3 text-center font-medium text-muted-foreground border-r">Risk</th>
                   {quiz.questions.map((_, qIndex) => (
-                    <th key={qIndex} className="px-4 py-3 text-center font-medium text-muted-foreground border-r min-w-[80px]">Q{qIndex + 1}</th>
+                    <th key={qIndex} className="px-4 py-3 text-center font-medium text-muted-foreground border-r min-w-20">Q{qIndex + 1}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
+              {sessions.length === 0 && (
+                  <tr>
+                    <td colSpan={quiz.questions.length + 4} className="py-12">
+                      <div className="flex flex-col items-center justify-center text-center gap-2">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-xl font-bold text-muted-foreground animate-pulse">
+                          ⏳
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">Waiting for students...</h3>
+                        <p className="text-sm text-muted-foreground">Share the access key <span className="font-mono font-bold text-primary">{quiz.quizCode}</span> with your students to begin.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 {sessions.map((session) => {
                   const isOnline = session.lastSeen && (Date.now() - new Date(session.lastSeen).getTime() < 15000);
                   let presenceBadge = <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">Offline</span>;
                   if (isOnline && session.status === "in_progress") {
-                    if (session.presence === "tab_switched") presenceBadge = <span className="text-xs bg-warning/20 text-warning-foreground px-2 py-1 rounded-full animate-pulse">⚠️ Tab Switched</span>;
+                    if (session.presence === "tab_switched") presenceBadge = <span className="text-xs bg-warning/20 text-warning-foreground px-2 py-1 rounded-full motion-safe:animate-pulse">⚠️ Tab Switched</span>;
                     else if (session.presence === "window_blur") 
-                      presenceBadge = <span className="text-xs bg-purple-200 text-purple-900 px-2 py-1 rounded-full animate-pulse">💻 Left App</span>;
+                      presenceBadge = <span className="text-xs bg-purple-200 text-purple-900 px-2 py-1 rounded-full motion-safe:animate-pulse">💻 Left App</span>;
                     else if (session.presence === "copy_paste_attempt") 
-                      presenceBadge = <span className="text-xs bg-red-200 text-red-900 px-2 py-1 rounded-full animate-pulse">📋 Copy/Paste</span>;
-                    else if (session.presence === "disconnected") presenceBadge = <span className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full animate-pulse">🔴 Disconnected</span>;
+                      presenceBadge = <span className="text-xs bg-red-200 text-red-900 px-2 py-1 rounded-full motion-safe:animate-pulse">📋 Copy/Paste</span>;
+                    else if (session.presence === "disconnected") presenceBadge = <span className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full motion-safe:animate-pulse">🔴 Disconnected</span>;
                     else if (session.presence === "not_fullscreen")
-                      presenceBadge = <span className="text-xs bg-orange-200 text-orange-900 px-2 py-1 rounded-full animate-pulse">🖵 Windowed</span>;
-                    else presenceBadge = <span className="text-xs bg-success/15 text-success px-2 py-1 rounded-full animate-pulse">🟢 Active</span>;
+                      presenceBadge = <span className="text-xs bg-orange-200 text-orange-900 px-2 py-1 rounded-full motion-safe:animate-pulse">🖵 Windowed</span>;
+                    else presenceBadge = <span className="text-xs bg-success/15 text-success px-2 py-1 rounded-full motion-safe:animate-pulse">🟢 Active</span>;
                   } else if (session.status === "completed") {
                     presenceBadge = <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">Completed</span>;
                   }
@@ -180,7 +213,18 @@ export default function MonitorQuiz() {
                       <td className="px-4 py-3 font-medium text-foreground border-r whitespace-nowrap">{session.studentEmail}</td>
                       <td className="px-4 py-3 text-muted-foreground border-r font-semibold">{session.score !== undefined ? `${session.score}/${session.totalQuestions}` : "-"}</td>
                       <td className="px-4 py-3 border-r whitespace-nowrap">{presenceBadge}</td>
-                      
+
+                         {/* NEW: Integrity Risk Score Cell */}
+                      <td className="px-4 py-3 text-center border-r whitespace-nowrap">
+                        <span className={`inline-block rounded-full px-2 py-1 text-xs font-bold ${
+                          session.integrityRisk > 60 ? 'bg-destructive/15 text-destructive' :
+                          session.integrityRisk > 30 ? 'bg-warning/15 text-warning-foreground' :
+                          'bg-success/15 text-success'
+                        }`}>
+                          {session.integrityRisk || 0}%
+                        </span>
+                      </td>
+
                       {session.gradedAnswers ? (
                         session.gradedAnswers.map((ans, aIndex) => (
                           <td key={aIndex} className={`px-4 py-3 text-center border-r font-mono ${getCellColor(ans)}`}>

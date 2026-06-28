@@ -14,6 +14,8 @@ export default function CreateQuiz() {
   const [timeLimit, setTimeLimit] = useState("5"); // Default 5 minutes
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+ const [includeTrueFalse, setIncludeTrueFalse] = useState(false);
+
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -47,6 +49,7 @@ export default function CreateQuiz() {
       formData.append("numQuestions", finalNum);
       formData.append("customPrompt", finalPrompt);
       formData.append("timeLimit", isDemo ? "5" : timeLimit);
+      formData.append("includeTrueFalse", isDemo ? false : includeTrueFalse);
       const response = await axios.post("/api/ai-quiz", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -115,6 +118,17 @@ export default function CreateQuiz() {
                   <option value="15">15 Questions</option>
                   <option value="20">20 Questions</option>
                 </select>
+              </Field>
+              <Field label="Question Types">
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={includeTrueFalse} 
+                    onChange={(e) => setIncludeTrueFalse(e.target.checked)}
+                    className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
+                  />
+                  <span className="text-sm font-medium">Include True/False questions (Mixed)</span>
+                </label>
               </Field>
               <Field label="Time Limit (Minutes)">
                 <select 

@@ -40,11 +40,14 @@ export async function POST(request) {
       // 2. If no PDF, use the custom prompt as the context
       contextText = customPrompt || "Generate a general knowledge quiz.";
     }
+    const includeTrueFalse = formData.get("includeTrueFalse") === "true";
 
     const prompt = `
       You are an expert professor. Based on the following context, create a ${difficulty} difficulty quiz with exactly ${numQuestions} questions.
       
-      CRITICAL INSTRUCTION FOR correctAnswer: You must provide the EXACT TEXT of the correct option. Do NOT use "A", "B", "C", or "D".
+      CRITICAL INSTRUCTION FOR correctAnswer: You must provide the EXACT TEXT of the correct option. Do NOT use "A", "B", "C", or "D". 
+
+      ${includeTrueFalse ? "MIX QUESTION TYPES: Make roughly half of the questions Multiple Choice (4 options) and the other part True/False (options must be exactly ['True', 'False']). but ensure that the mcq's more than the tf's" : "Make all questions Multiple Choice with 4 options."}
 
       Return ONLY a valid JSON object with this exact format:
       {
@@ -79,6 +82,7 @@ export async function POST(request) {
       category: "AI Generated",
       difficulty: difficulty,
       questions: aiResult.questions,
+      isActive: true,
       timeLimit: parseInt(formData.get("timeLimit") || "5", 10),
       quizCode: `${(title || "QUIZ").substring(0, 4).toUpperCase().replace(/\s/g, '')}-${randomUUID().split("-")[0].toUpperCase()}`,
       createdAt: new Date().toISOString(),

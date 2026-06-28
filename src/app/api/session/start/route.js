@@ -16,6 +16,13 @@ export async function POST(request) {
     const quizRes = await docClient.send(new GetCommand({ TableName: "Quizzes", Key: { quizId } }));
     const quiz = quizRes.Item;
 
+     if (!quiz) return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+
+    // NEW: Block if deactivated (unless it's the judge testing)
+    if (!quiz.isActive && studentEmail !== "student.judge@pace.com") {
+      return NextResponse.json({ error: "This quiz has been deactivated by the lecturer." }, { status: 403 });
+    }
+
     // 1. Check if they already have a session
     const sessionId = `${quizId}-${studentEmail}`;
     const existingSessionRes = await docClient.send(new GetCommand({ TableName: "QuizSessions", Key: { sessionId } }));
@@ -42,9 +49,23 @@ export async function POST(request) {
       startedAt: new Date().toISOString()
     };
 
-    await docClient.send(new PutCommand({ TableName: "QuizSessions", Item: newSession }));
+     try {
+      await docClient.send(new PutCommand({
+        TableName: "QuizSessions",
+        Item: newSession,
+        // NEW: Prevents double-click race conditions!
+        ConditionExpression: "attribute_not_exists(sessionId)" 
+      }));
 
-    return NextResponse.json({ success: true, sessionId: newSession.sessionId });
+      return NextResponse.json({ success: true, sessionId: newSession.sessionId });
+
+    } catch (err) {
+      // If it already exists (race condition), just return the existing one
+      if (err.name === 'ConditionalCheckFailedException') {
+        return NextResponse.json({ success: true, sessionId: sessionId });
+      }
+      throw err;
+    }
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

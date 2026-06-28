@@ -36,7 +36,11 @@ export default function StudentDashboard() {
       const response = await axios.post("/api/student/join-quiz", { code });
       if (response.data.success) router.push(`/student/quiz/${response.data.quiz.quizId}`);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to find quiz.");
+      const errorMsg = err.response?.data?.error || "Failed to find quiz. Try again.";
+      setError(errorMsg);
+      if (errorMsg.includes("deactivated")) {
+        toast.error("This quiz is closed.");
+      }
     } finally { setLoading(false); }
   };
 

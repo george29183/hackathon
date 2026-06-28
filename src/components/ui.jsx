@@ -9,14 +9,13 @@ export function Button({ children, className = "", variant = "primary", ...props
 
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-45 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-45 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}
     </button>
   );
 }
-
 export function Field({ label, children }) {
   return (
     <label className="grid gap-2 text-sm font-medium text-foreground">

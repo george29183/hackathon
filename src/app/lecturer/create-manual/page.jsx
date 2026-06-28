@@ -11,7 +11,7 @@ export default function CreateManualQuiz() {
   const [title, setTitle] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   const [questions, setQuestions] = useState([
-    { questionText: "", options: ["", "", "", ""], correctAnswer: "" }
+    { questionText: "", type: "mcq", options: ["", "", "", ""], correctAnswer: "" }
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,8 +31,23 @@ export default function CreateManualQuiz() {
   };
 
   const addQuestion = () => {
-    setQuestions([...questions, { questionText: "", options: ["", "", "", ""], correctAnswer: "" }]);
+    setQuestions([...questions, { questionText: "", type: "mcq", options: ["", "", "", ""], correctAnswer: "" }]);
   };
+
+    // NEW: Function to toggle question type
+  const handleTypeChange = (qIndex, type) => {
+    const newQuestions = [...questions];
+    if (type === "tf") {
+      newQuestions[qIndex].options = ["True", "False"];
+      newQuestions[qIndex].correctAnswer = "";
+    } else {
+      newQuestions[qIndex].options = ["", "", "", ""];
+      newQuestions[qIndex].correctAnswer = "";
+    }
+    newQuestions[qIndex].type = type;
+    setQuestions(newQuestions);
+  };
+
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -89,9 +104,21 @@ export default function CreateManualQuiz() {
           </div>
         </Card>
 
-        {questions.map((q, qIndex) => (
+       {questions.map((q, qIndex) => (
           <Card key={qIndex} className="p-6 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Question {qIndex + 1}</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Question {qIndex + 1}</h3>
+              {/* NEW: Type Selector */}
+              <select 
+                value={q.type} 
+                onChange={(e) => handleTypeChange(qIndex, e.target.value)}
+                className="h-9 rounded-lg border border-input bg-card px-3 text-xs outline-none focus:border-primary"
+              >
+                <option value="mcq">Multiple Choice (4)</option>
+                <option value="tf">True / False</option>
+              </select>
+            </div>
+            
             <Field label="Question Text">
               <Input 
                 type="text" 
@@ -110,12 +137,15 @@ export default function CreateManualQuiz() {
                     checked={q.correctAnswer === opt} 
                     onChange={() => handleQuestionChange(qIndex, "correctAnswer", opt)} 
                     className="h-4 w-4 text-primary focus:ring-primary"
+                    disabled={q.type === "tf" && opt !== "True" && opt !== "False"} // Just in case
                   />
                   <Input 
                     type="text" 
                     placeholder={`Option ${optIndex + 1}`} 
                     value={opt} 
                     onChange={(e) => handleOptionChange(qIndex, optIndex, e.target.value)} 
+                    disabled={q.type === "tf"} // Lock inputs for True/False
+                    className={q.type === "tf" ? "bg-muted cursor-not-allowed" : ""}
                   />
                 </div>
               ))}

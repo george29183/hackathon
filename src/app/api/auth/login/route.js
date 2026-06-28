@@ -35,7 +35,11 @@ export async function POST(request) {
     // 3. Compare password
     const validPassword = await bcryptjs.compare(password, user.password);
     if (!validPassword) {
-      return NextResponse.json({ error: "Password incorrect" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 400 });
+    }
+      // NEW: Check if verified
+    if (!user.isVerified) {
+      return NextResponse.json({ error: "Please verify your email first" }, { status: 403 });
     }
 
     // 4. Create token data
@@ -70,7 +74,8 @@ export async function POST(request) {
 
     res.cookies.set("student_token", token, {
       httpOnly: true,
-       secure: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict", 
     });
 
     return res;
