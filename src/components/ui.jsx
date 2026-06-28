@@ -71,3 +71,25 @@ export function Header({ title, onBack, actionLabel = "Back" }) {
     </header>
   );
 }
+
+export function Modal({ isOpen, onClose, onConfirm, title, description, confirmText = "Confirm", loading = false }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md p-6 bg-card border border-border rounded-2xl scando-shadow-lg animate-in zoom-in-95 duration-200">
+        <h3 className="text-xl font-bold text-foreground">{title}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+        
+        <div className="mt-8 flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={onConfirm} disabled={loading} className="bg-destructive text-white hover:bg-destructive/90">
+            {loading ? "Deleting..." : confirmText}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { Button, Card, Stat } from "@/components/ui";
+import { Button, Card, Stat, Modal } from "@/components/ui";
 import toast from "react-hot-toast";
 import Navbar from "@/components/navbar";
 
@@ -13,6 +13,7 @@ export default function StudentProfile() {
   const [quizzesTaken, setQuizzesTaken] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -34,10 +35,6 @@ export default function StudentProfile() {
   }, []);
 
    const handleDeleteAccount = async () => {
-    // Simple confirmation for the hackathon
-    const confirmDelete = window.confirm("Are you absolutely sure? This will permanently delete your account and data.");
-    if (!confirmDelete) return;
-
     setDeleting(true);
     try {
       await axios.post("/api/auth/delete-account", {}, { withCredentials: true });
@@ -45,8 +42,8 @@ export default function StudentProfile() {
       setTimeout(() => router.push("/"), 1500);
     } catch (err) {
       toast.error("Failed to delete account.");
-    } finally {
       setDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -90,13 +87,21 @@ export default function StudentProfile() {
             <p className="text-xs text-muted-foreground mb-4">Permanently delete your account and remove your data from our database.</p>
             <Button 
               variant="danger" 
-              onClick={handleDeleteAccount} 
-              disabled={deleting}
+              onClick={() => setShowDeleteModal(true)} 
               className="bg-destructive text-white hover:bg-destructive/90"
             >
-              {deleting ? "Deleting..." : "Delete My Account"}
+              Delete My Account
             </Button>
           </div>
+          <Modal 
+            isOpen={showDeleteModal}
+            onClose={() => setShowDeleteModal(false)}
+            onConfirm={handleDeleteAccount}
+            title="Are you absolutely sure?"
+            description="This action cannot be undone. This will permanently delete your account and remove your data from our servers."
+            confirmText="Yes, delete my account"
+            loading={deleting}
+          />
         </Card>
       </section>
     </main>
