@@ -13,7 +13,6 @@ export async function POST(request) {
       password,
       email,
     } = reqBody;
-    console.log(reqBody);
 
     // 2. Check if user already exists
 
@@ -36,7 +35,6 @@ export async function POST(request) {
     // 3. Hash the password
     const salt = await bcryptjs.genSalt(10);
     const hashedPassword = await bcryptjs.hash(password, salt);
-    console.log(hashedPassword);
 
     // 4. Create the user object
     // DynamoDB's DocumentClient handles nested objects (like 'location') automatically!
@@ -47,8 +45,6 @@ export async function POST(request) {
       isVerified:isJudge ? true : false, // Auto-verify the judge! 
       dateCreated: new Date().toISOString(), // Using ISO string is best practice for dates in DynamoDB
     };
-
-    console.log(newUser);
 
     // 5. Save user to DynamoDB
     const putCommand = new PutCommand({

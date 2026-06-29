@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { docClient } from "@/lib/dynamodb";
 import { ScanCommand } from "@aws-sdk/lib-dynamodb";
-
+import jwt from "jsonwebtoken";
 export async function POST(request) {
   try {
+
+    const token = request.cookies.get("student_token")?.value;
+
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    jwt.verify(token, process.env.TOKEN_SECRET);
+
     const { code } = await request.json();
     const formattedCode = code.trim().toUpperCase(); // Clean up student input
 

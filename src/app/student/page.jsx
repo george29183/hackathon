@@ -4,7 +4,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, Input, Stat } from "@/components/ui";
 import Navbar from "@/components/navbar";
-
+import toast from "react-hot-toast";
 
 export default function StudentDashboard() {
   const router = useRouter();

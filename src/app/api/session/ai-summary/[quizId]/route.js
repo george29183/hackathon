@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { docClient } from "@/lib/dynamodb";
 import { ScanCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import OpenAI from "openai";
-
+import jwt from "jsonwebtoken";
 export const runtime = "nodejs";
 
 const openai = new OpenAI({
@@ -12,10 +12,20 @@ const openai = new OpenAI({
 
 export async function GET(request, { params }) {
   try {
+
+    const token = request.cookies.get("lecturer_token")?.value;
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const decoded = jwt.verify(token, process.env.TOKEN_SECRET);
+
     const { quizId } = await params;
 
     const quizRes = await docClient.send(new GetCommand({ TableName: "Quizzes", Key: { quizId } }));
     const quiz = quizRes.Item;
+
+     if (quiz.lecturerEmail !== decoded.email) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    
     const sessionsRes = await docClient.send(new ScanCommand({
       TableName: "QuizSessions",
       FilterExpression: "quizId = :quizId",

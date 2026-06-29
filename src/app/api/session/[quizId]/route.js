@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { docClient } from "@/lib/dynamodb";
 import { ScanCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
-
+import jwt from "jsonwebtoken";
 export async function GET(request, { params }) {
   try {
+
+      const token = request.cookies.get("lecturer_token")?.value;
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const decoded = jwt.verify(token, process.env.TOKEN_SECRET);
+
+
     const { quizId } = await params;
 
     // 1. Fetch the original Quiz to get the questions and total count
@@ -15,6 +21,10 @@ export async function GET(request, { params }) {
 
     if (!quiz) {
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+    }
+
+    if (quiz.lecturerEmail !== decoded.email) {
+      return NextResponse.json({ error: "Forbidden: you do not own this quiz" }, { status: 403 });
     }
 
     // 2. Fetch all Student Sessions for this Quiz
