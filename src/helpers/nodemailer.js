@@ -7,7 +7,6 @@ export const sendEmail = async ({ email, emailType, userId }) => {
   try {
     // 1. Create a hashed token
     const hashedToken = await bcryptjs.hash(userId.toString(), 10);
-    console.log(hashedToken);
 
     // 2. DynamoDB update configurations based on emailType
     // We define the table name and the attributes to update

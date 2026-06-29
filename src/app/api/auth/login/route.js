@@ -9,7 +9,6 @@ export async function POST(request) {
     // 1. Get student login data
     const reqBody = await request.json();
     const { email, password } = reqBody;
-    console.log(reqBody);
 
     // 2. Check if student exists in DynamoDB
     // Since 'email' is our Partition Key, we use GetCommand to fetch the student directly

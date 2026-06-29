@@ -73,12 +73,6 @@ export default function TakeQuiz() {
   }, [quizId]);
 
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timerId = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    return () => clearInterval(timerId);
-  }, [timeLeft]);
-
-  useEffect(() => {
     if (timeLeft === 0 && quiz && !submitting && !result && questionData.length > 0) {
       handleSubmit(true);
     }
@@ -341,7 +335,13 @@ export default function TakeQuiz() {
           <p className="mt-2 text-sm text-muted-foreground">To maintain academic integrity, please enter fullscreen mode to start your quiz.</p>
           <Button 
             className="mt-6 w-full" 
-            onClick={() => document.documentElement.requestFullscreen()}
+            onClick={async () => {
+              try {
+                await document.documentElement.requestFullscreen();
+              } catch (err) {
+                toast.error("Couldn't enter fullscreen. Please try again.");
+              }
+            }}
           >
             Enter Fullscreen & Start
           </Button>
